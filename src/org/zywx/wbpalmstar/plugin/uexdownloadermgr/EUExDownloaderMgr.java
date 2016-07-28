@@ -15,11 +15,13 @@ import org.json.JSONObject;
 import org.zywx.wbpalmstar.base.BDebug;
 import org.zywx.wbpalmstar.base.BUtility;
 import org.zywx.wbpalmstar.base.ResoureFinder;
+import org.zywx.wbpalmstar.engine.DataHelper;
 import org.zywx.wbpalmstar.engine.EBrowserView;
 import org.zywx.wbpalmstar.engine.universalex.EUExBase;
 import org.zywx.wbpalmstar.engine.universalex.EUExCallback;
 import org.zywx.wbpalmstar.engine.universalex.EUExUtil;
 import org.zywx.wbpalmstar.platform.certificates.Http;
+import org.zywx.wbpalmstar.plugin.uexdownloadermgr.vo.CreateVO;
 import org.zywx.wbpalmstar.widgetone.dataservice.WWidgetData;
 
 import java.io.BufferedInputStream;
@@ -62,6 +64,7 @@ public class EUExDownloaderMgr extends EUExBase {
 
     private WWidgetData mCurWData;
     private String lastPercent = "";
+    private static int sCurrentId;
 
     public EUExDownloaderMgr(Context context, EBrowserView view) {
         super(context, view);
@@ -156,6 +159,26 @@ public class EUExDownloaderMgr extends EUExBase {
                 Integer.parseInt(inOpCode), EUExCallback.F_C_INT,
                 EUExCallback.F_C_SUCCESS);
         return true;
+    }
+
+    public String create(String[] params){
+        int id=-1;
+        if (params!=null&&params.length>0){
+            CreateVO createVO= DataHelper.gson.fromJson(params[0],CreateVO.class);
+            id=createVO.Id;
+        }
+        if (id==-1){
+            id=generateId();
+        }
+        boolean result=createDownloader(new String[]{
+                String.valueOf(id)
+        });
+        return result?String.valueOf(id):null;
+    }
+
+    private int generateId(){
+        sCurrentId++;
+        return sCurrentId;
     }
 
     /**
