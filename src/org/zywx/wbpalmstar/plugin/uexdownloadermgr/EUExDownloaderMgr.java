@@ -10,26 +10,26 @@ import android.text.TextUtils;
 import android.text.format.Time;
 import android.util.Log;
 
-import org.apache.http.HttpResponse;
-import org.apache.http.HttpStatus;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.params.ClientPNames;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.zywx.wbpalmstar.base.BDebug;
 import org.zywx.wbpalmstar.base.BUtility;
 import org.zywx.wbpalmstar.base.ResoureFinder;
+import org.zywx.wbpalmstar.engine.DataHelper;
 import org.zywx.wbpalmstar.engine.EBrowserView;
 import org.zywx.wbpalmstar.engine.universalex.EUExBase;
 import org.zywx.wbpalmstar.engine.universalex.EUExCallback;
 import org.zywx.wbpalmstar.engine.universalex.EUExUtil;
 import org.zywx.wbpalmstar.platform.certificates.Http;
+import org.zywx.wbpalmstar.plugin.uexdownloadermgr.vo.CreateVO;
 import org.zywx.wbpalmstar.widgetone.dataservice.WWidgetData;
 
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.DecimalFormat;
@@ -64,6 +64,7 @@ public class EUExDownloaderMgr extends EUExBase {
 
     private WWidgetData mCurWData;
     private String lastPercent = "";
+    private static int sCurrentId;
 
     public EUExDownloaderMgr(Context context, EBrowserView view) {
         super(context, view);
@@ -136,20 +137,20 @@ public class EUExDownloaderMgr extends EUExBase {
         m_database.execSQL(sql);
     }
 
-    public void createDownloader(String[] parm) {
+    public boolean createDownloader(String[] parm) {
         if (parm.length != 1) {
-            return;
+            return false;
         }
         String inOpCode = parm[0];
         if (!BUtility.isNumeric(inOpCode)) {
-            return;
+            return false;
         }
         checkAppStatus(mContext, mBrwView.getRootWidget().m_appId);
         if (m_objectMap.containsKey(Integer.parseInt(inOpCode))) {
             jsCallback(F_CALLBACK_NAME_CREATEDOWNLOADER,
                     Integer.parseInt(inOpCode), EUExCallback.F_C_INT,
                     EUExCallback.F_C_FAILED);
-            return;
+            return false;
         }
         creatTaskTable();
         DownLoadAsyncTask dlTask = new DownLoadAsyncTask();
@@ -157,6 +158,27 @@ public class EUExDownloaderMgr extends EUExBase {
         jsCallback(F_CALLBACK_NAME_CREATEDOWNLOADER,
                 Integer.parseInt(inOpCode), EUExCallback.F_C_INT,
                 EUExCallback.F_C_SUCCESS);
+        return true;
+    }
+
+    public String create(String[] params){
+        int id=-1;
+        if (params!=null&&params.length>0){
+            CreateVO createVO= DataHelper.gson.fromJson(params[0],CreateVO.class);
+            id=createVO.Id;
+        }
+        if (id==-1){
+            id=generateId();
+        }
+        boolean result=createDownloader(new String[]{
+                String.valueOf(id)
+        });
+        return result?String.valueOf(id):null;
+    }
+
+    private int generateId(){
+        sCurrentId++;
+        return sCurrentId;
     }
 
     /**
@@ -164,11 +186,14 @@ public class EUExDownloaderMgr extends EUExBase {
      *
      */
     public void download(String[] parm) {
-        if (parm.length != 4) {
+        if (parm.length < 4) {
             return;
         }
         String inOpCode = parm[0], inDLUrl = parm[1], inSavePath = parm[2], inMode = parm[3];
-
+        int callbackId=-1;
+        if (parm.length>4){
+            callbackId= Integer.parseInt(parm[4]);
+        }
         url_objectMap.put(inDLUrl, inOpCode);
         if (TextUtils.isEmpty(inDLUrl)) {
             inDLUrl = parm[1];
@@ -178,11 +203,16 @@ public class EUExDownloaderMgr extends EUExBase {
         }
         inSavePath = BUtility.makeUrl(mBrwView.getCurrentUrl(), inSavePath);
         if (inSavePath == null || inSavePath.length() == 0) {
-            errorCallback(
-                    Integer.parseInt(inOpCode),
-                    EUExCallback.F_E_UEXDOWNLOAD_DOWNLOAD_1,
-                    ResoureFinder.getInstance().getString(mContext,
-                            "plugin_downloadermgr_error_parameter"));
+            if (callbackId!=-1){
+                callbackToJs(callbackId,false,0,0,2);
+            }else{
+                errorCallback(
+                        Integer.parseInt(inOpCode),
+                        EUExCallback.F_E_UEXDOWNLOAD_DOWNLOAD_1,
+                        ResoureFinder.getInstance().getString(mContext,
+                                "plugin_downloadermgr_error_parameter"));
+            }
+
             return;
         }
         inSavePath = BUtility.makeRealPath(
@@ -192,42 +222,54 @@ public class EUExDownloaderMgr extends EUExBase {
         DownLoadAsyncTask dlTask = m_objectMap.get(Integer.parseInt(inOpCode));
         if (dlTask != null) {
             if (dlTask.state == F_STATE_CREATE_DOWNLOADER) {
+                dlTask.setCallbackId(callbackId);
                 dlTask.state = F_STATE_DOWNLOADING;
                 dlTask.execute(inDLUrl, inSavePath, inMode,
                         String.valueOf(inOpCode));
-
             }
 
         } else {
-            errorCallback(
-                    Integer.parseInt(inOpCode),
-                    EUExCallback.F_E_UEXDOWNLOAD_DOWNLOAD_1,
-                    ResoureFinder.getInstance().getString(mContext,
-                            "plugin_downloadermgr_error_parameter"));
-
+            if (callbackId!=-1) {
+                callbackToJs(callbackId,false,0,0,2);
+            }else{
+                errorCallback(
+                        Integer.parseInt(inOpCode),
+                        EUExCallback.F_E_UEXDOWNLOAD_DOWNLOAD_1,
+                        ResoureFinder.getInstance().getString(mContext,
+                                "plugin_downloadermgr_error_parameter"));
+            }
         }
     }
 
-    private void cbToJs(int inOpCode, Long fileSize, String percent, int status) {
-        String js = SCRIPT_HEADER + "if("
-                + F_CALLBACK_NAME_DOWNLOADPERCENT + "){"
-                + F_CALLBACK_NAME_DOWNLOADPERCENT + "("
-                + inOpCode + "," + fileSize + "," + percent + "," + status + ")}";
-        if((!percent.equals(lastPercent))
-                || (EUExCallback.F_C_DownLoading != status))
+    /**
+     * 该方法不能用于还有后续回调的，比如下载中。
+     */
+    private void cbToJs(int inOpCode, Long fileSize, String percent, int status,int callbackId) {
+        if (callbackId!=-1){
+            callbackToJs(callbackId,false,fileSize,percent,status);
+        }else{
+            String js = SCRIPT_HEADER + "if("
+                    + F_CALLBACK_NAME_DOWNLOADPERCENT + "){"
+                    + F_CALLBACK_NAME_DOWNLOADPERCENT + "("
+                    + inOpCode + "," + fileSize + "," + percent + "," + status + ")}";
+            if((!percent.equals(lastPercent))
+                    || (EUExCallback.F_C_DownLoading != status))
             {
                 lastPercent = percent;
                 onCallback(js);
             }
+        }
+
+
     }
 
-    public void closeDownloader(String[] parm) {
+    public boolean closeDownloader(String[] parm) {
         if (parm.length != 1) {
-            return;
+            return false;
         }
         String inOpCode = parm[0];
         if (!BUtility.isNumeric(inOpCode)) {
-            return;
+            return false;
         }
         DownLoadAsyncTask dlTask = m_objectMap.remove(Integer
                 .parseInt(inOpCode));
@@ -236,12 +278,12 @@ public class EUExDownloaderMgr extends EUExBase {
             dlTask = null;
 
         }
-
+        return true;
     }
 
-    public void getInfo(String[] parm) {
+    public JSONObject getInfo(String[] parm) {
         if (parm.length != 1) {
-            return;
+            return null;
         }
         String inUrl = parm[0];
         String[] info = selectTaskFromDB(inUrl);
@@ -262,7 +304,7 @@ public class EUExDownloaderMgr extends EUExBase {
         } else {
             jsCallback(F_CALLBACK_NAME_GETINFO, 0, EUExCallback.F_C_JSON, "");
         }
-
+        return json;
     }
 
     public void clearTask(String[] parm) {
@@ -295,15 +337,15 @@ public class EUExDownloaderMgr extends EUExBase {
 
     }
 
-    public void cancelDownload(String[] parm) {
+    public boolean cancelDownload(String[] parm) {
         if (parm.length < 1) {
-            return;
+            return false;
         }
         String dlUrl = parm[0];
 
         String inOpCode = url_objectMap.get(dlUrl);
         if (!BUtility.isNumeric(inOpCode)) {
-            return;
+            return false;
         }
         DownLoadAsyncTask dlTask = m_objectMap.remove(Integer
                 .parseInt(inOpCode));
@@ -325,13 +367,12 @@ public class EUExDownloaderMgr extends EUExBase {
         }
 
         url_objectMap.clear();
+        return true;
     }
 
     private class DownLoadAsyncTask extends AsyncTask<String, Integer, String> {
-        HttpGet request = null;
-        HttpClient httpClient = null;
+        HttpURLConnection mConnection;
         BufferedInputStream bis = null;
-        HttpResponse response = null;
         RandomAccessFile outputStream = null;
         DownloadPercentage m_dlPercentage = new DownloadPercentage();
         long downLoaderSise = 0;
@@ -340,25 +381,32 @@ public class EUExDownloaderMgr extends EUExBase {
         private String op;
         private boolean isError = false;
 
+        private int callbackId=-1;
         @Override
         protected void onCancelled() {
             try {
                 if (!op.isEmpty() && !isError) {
-                    cbToJs(Integer.parseInt(op), fileSize, "0", EUExCallback.F_C_CB_CancelDownLoad);
-                }
+                        cbToJs(Integer.parseInt(op), fileSize, "0", EUExCallback.F_C_CB_CancelDownLoad,callbackId);
+                  }
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }
 
         @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+        }
+
+        @Override
         protected String doInBackground(String... params) {
             try {
+                String url=params[0];
                 Thread.currentThread().setPriority(Thread.MIN_PRIORITY);
                 op = params[3];
-                request = new HttpGet(params[0]);
-                if (params[0].startsWith(BUtility.F_HTTP_PATH)) {
-                    httpClient = Http.getHttpClient(60 * 1000);
+
+                if (url.startsWith(BUtility.F_HTTP_PATH)) {
+                    mConnection= (HttpURLConnection) new URL(url).openConnection();
                 } else {
                     // https
                     if (mHasCert) {
@@ -368,25 +416,25 @@ public class EUExDownloaderMgr extends EUExBase {
                         String appId = wd.m_appId;
                         String cPassWord = EUExUtil.getCertificatePsw(mContext,
                                 appId);
-                        httpClient = Http.getHttpsClientWithCert(cPassWord,
-                                certPath, 60 * 1000, mContext);
+                        mConnection=Http.getHttpsURLConnectionWithCert(new URL(url),cPassWord,certPath,mContext);
                     } else {
-                        httpClient = Http.getHttpsClient(60 * 1000);
+                        mConnection=Http.getHttpsURLConnection(url);
                     }
                 }
-                httpClient.getParams().setParameter(ClientPNames.HANDLE_REDIRECTS,true);//自动处理重定向
+                mConnection.setConnectTimeout(60*1000);
+                mConnection.setRequestMethod("GET");
                 String cookie = getCookie(params[0]);
                 if (cookie != null && cookie.length() != 0) {
-                    request.setHeader("Cookie", cookie);
+                    mConnection.setRequestProperty("Cookie", cookie);
                 }
 
                 addHeaders();
                 if (null != mCurWData) {
-                    request.setHeader(
+                    mConnection.setRequestProperty(
                             KEY_APPVERIFY,
                             getAppVerifyValue(mCurWData,
                                     System.currentTimeMillis()));
-                    request.setHeader(XMAS_APPID, mCurWData.m_appId);
+                    mConnection.setRequestProperty(XMAS_APPID, mCurWData.m_appId);
                 }
 
                 File file = new File(params[1]);
@@ -402,7 +450,8 @@ public class EUExDownloaderMgr extends EUExBase {
                         long fileSize = Long.valueOf(res[1]);
                         if (fileSize != 0 && fileSize == downLoaderSise) {
                             // 若文件存在并且文件大小等于数据库中实际的文件大小，则认为文件已经下载完成
-                            cbToJs(Integer.parseInt(params[3]), fileSize, "100", EUExCallback.F_C_FinishDownLoad);
+                                cbToJs(Integer.parseInt(params[3]), fileSize, "100", EUExCallback.F_C_FinishDownLoad,
+                                        callbackId);
                             return null;
                         }
                     }
@@ -418,7 +467,7 @@ public class EUExDownloaderMgr extends EUExBase {
                             file.delete();
                         }
                     }
-                    request.setHeader("RANGE", "bytes=" + downLoaderSise + "-");
+                    mConnection.setRequestProperty("RANGE", "bytes=" + downLoaderSise + "-");
 
                 } else {
                     file = new File(params[1]);
@@ -430,10 +479,9 @@ public class EUExDownloaderMgr extends EUExBase {
                         file.delete();
                     }
                 }
-                response = httpClient.execute(request);
-                int responseCode = response.getStatusLine().getStatusCode();
-                if (responseCode == HttpStatus.SC_OK || responseCode == 206) {
-                    fileSize = response.getEntity().getContentLength();
+                int responseCode = mConnection.getResponseCode();
+                if (responseCode == HttpURLConnection.HTTP_OK || responseCode == 206) {
+                    fileSize = mConnection.getContentLength();
                     if (outputStream == null) {
                         outputStream = new RandomAccessFile(params[1], "rw");
                     }
@@ -443,10 +491,9 @@ public class EUExDownloaderMgr extends EUExBase {
                         fileSize += downLoaderSise;
                         addTaskToDB(params[0], params[1], fileSize);
                     }
-                    m_dlPercentage.init(fileSize, Integer.parseInt(params[3]));
+                    m_dlPercentage.init(fileSize, Integer.parseInt(params[3]),callbackId);
 
-                    bis = new BufferedInputStream(response.getEntity()
-                            .getContent());
+                    bis = new BufferedInputStream(mConnection.getInputStream());
                     byte buf[] = new byte[64 * 1024];
                     while (!isCancelled()) {
                         // 循环读取
@@ -463,25 +510,20 @@ public class EUExDownloaderMgr extends EUExBase {
                         // 为了使下载速度加快，取消休眠代码，以目前手机平台的处理速度，此代码用处暂时可以认为只有坏处没有好处。
                     }
                     if (fileSize <= downLoaderSise) {
-                        cbToJs(Integer.parseInt(params[3]), fileSize, "100", EUExCallback.F_C_FinishDownLoad);
-                    }
+                            cbToJs(Integer.parseInt(params[3]), fileSize, "100", EUExCallback.F_C_FinishDownLoad,callbackId);
+                     }
                 } else {
                     isError = true;
-                    cbToJs(Integer.parseInt(params[3]), fileSize, "0", EUExCallback.F_C_DownLoadError);
+                    cbToJs(Integer.parseInt(params[3]), fileSize, "0", EUExCallback.F_C_DownLoadError,callbackId);
                 }
             } catch (Exception e) {
                 isError = true;
-                cbToJs(Integer.parseInt(params[3]), fileSize, "0", EUExCallback.F_C_DownLoadError);
+                cbToJs(Integer.parseInt(params[3]), fileSize, "0", EUExCallback.F_C_DownLoadError,callbackId);
                 e.printStackTrace();
             } finally {
-                if (request != null) {
-                    request = null;
-                }
-                if (httpClient != null) {
-                    httpClient = null;
-                }
-                if (response != null) {
-                    response = null;
+                if (mConnection!=null){
+                    mConnection.disconnect();
+                    mConnection=null;
                 }
                 if (outputStream != null) {
                     try {
@@ -499,32 +541,51 @@ public class EUExDownloaderMgr extends EUExBase {
         }
 
         private void addHeaders() {
-            if (null != request && null != headersMap) {
+            if (null != mConnection && null != headersMap) {
                 Set<Entry<String, String>> entrys = headersMap.entrySet();
                 for (Map.Entry<String, String> entry : entrys) {
-
-                    request.setHeader(entry.getKey(), entry.getValue());
+                    mConnection.setRequestProperty(entry.getKey(), entry.getValue());
                 }
             }
         }
 
+        public int getCallbackId() {
+            return callbackId;
+        }
+
+        public void setCallbackId(int callbackId) {
+            this.callbackId = callbackId;
+        }
     }
 
     private class DownloadPercentage {
         long fileSize;
         int opCode;
+        int callbackId=-1;
         DecimalFormat df = new DecimalFormat();
+        String lastPercent ="0";
 
-        public void init(long fileSize2, int inOpCode) {
+        public void init(long fileSize2, int inOpCode,int callbackId) {
             fileSize = fileSize2;
             opCode = inOpCode;
+            this.callbackId=callbackId;
             df.setMaximumFractionDigits(2);
             df.setMinimumFractionDigits(0);
         }
 
         public void sendMessage(long downSize) {
-            cbToJs(opCode, fileSize, df.format(downSize * 100 / fileSize), EUExCallback.F_C_DownLoading);
-        }
+            String percentStr=df.format(downSize * 100 / fileSize);
+            if (lastPercent.equals(percentStr)){
+                return;
+            }else {
+                lastPercent = percentStr;
+            }
+            if(callbackId!=-1 ){
+                callbackToJs(callbackId,true,fileSize, percentStr, EUExCallback.F_C_DownLoading);
+            }else{
+                cbToJs(opCode, fileSize,percentStr, EUExCallback.F_C_DownLoading,callbackId);
+            }
+         }
     }
 
     private static class DatabaseHelper extends SQLiteOpenHelper {
@@ -586,7 +647,7 @@ public class EUExDownloaderMgr extends EUExBase {
     }
 
     public void setHeaders(String[] params) {
-        if (params.length < 2 || null == params) {
+        if (params.length < 2) {
             return;
         }
         String opCode = params[0];
@@ -619,11 +680,11 @@ public class EUExDownloaderMgr extends EUExBase {
                 return;
             }
             if ("1".equals(appstatuss[8])) {
-                Log.i(tag, "isCertificate: true");
+                BDebug.i(tag, "isCertificate: true");
                 mHasCert = true;
             }
         } catch (Exception e) {
-            Log.w(tag, e.getMessage(), e);
+            BDebug.w(tag, e.getMessage(), e);
         }
 
     }
