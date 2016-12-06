@@ -64,6 +64,7 @@ public class EUExDownloaderMgr extends EUExBase {
 
     private WWidgetData mCurWData;
     private String lastPercent = "";
+    private long mLastTime=0;
     private static int sCurrentId;
 
     public EUExDownloaderMgr(Context context, EBrowserView view) {
@@ -575,9 +576,11 @@ public class EUExDownloaderMgr extends EUExBase {
 
         public void sendMessage(long downSize) {
             String percentStr=df.format(downSize * 100 / fileSize);
-            if (lastPercent.equals(percentStr)){
+            long currentTime=System.currentTimeMillis();
+            if (lastPercent.equals(percentStr)||currentTime-mLastTime<500){
                 return;
             }else {
+                mLastTime=currentTime;
                 lastPercent = percentStr;
             }
             if(callbackId!=-1 ){
