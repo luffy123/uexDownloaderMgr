@@ -1,23 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <uexplugins>
     <plugin
-        uexName="uexDownloaderMgr" version="4.0.1" build="16">
-        <info>16:解决回调过快导致卡死的问题</info>
-        <build>15:4.0改造</build>
-        <build>14:修复下载过程中下载进度过快导致应用异常的问题。</build>
-        <build>13:修复有些url被encode不能下载的问题</build>
-        <build>12:修复下载过程中崩溃的问题（由于与其他插件使用的数据库同名造成的）。</build>
-        <build>11:修复调用cancelDownload之后，即使不清除已下载的临时文件，下次下载时不能断点续传的问题。</build>
-        <build>10:增加新的 header以及plugin里面的子应用的appId和appkey都按照主应用为准</build>
-        <build>9:增加appVerify校验头</build>
-        <build>8:https下载时可以支持预置证书；增大下载缓冲区；支持中文url;增强稳定性</build>
-        <build>7:修复不支持HTTPS问题</build>
-        <build>6:新增setHeaders接口</build>
-        <build>5:引擎更新后，修复取消下载提示不准确的问题</build>
-        <build>4:修复下载速度慢的问题，修复取消下载提示不准确问题</build>
-        <build>3:新增接口cancelDownload</build>
-        <build>2:修复下载速度的问题</build>
-        <build>1:修复下载完成之后，无法打开，文件不存在的问题</build>
-        <build>0:下载管理功能插件</build>
+        uexName="uexDownloaderMgr" version="4.0.1" build="1">
+        <info>1:解决回调过快导致卡死的问题</info>
+        <build>0:4.0改造</build>
     </plugin>
 </uexplugins>
