@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.DecimalFormat;
@@ -406,6 +407,11 @@ public class EUExDownloaderMgr extends EUExBase {
                 Thread.currentThread().setPriority(Thread.MIN_PRIORITY);
                 op = params[3];
 
+                String docName = url.substring(url.lastIndexOf("/") + 1);
+
+                url = url.substring(0,url.lastIndexOf("/"))+"/"+ URLEncoder.encode(docName,"utf-8");
+
+
                 if (url.startsWith(BUtility.F_HTTP_PATH)) {
                     mConnection= (HttpURLConnection) new URL(url).openConnection();
                 } else {
@@ -514,13 +520,17 @@ public class EUExDownloaderMgr extends EUExBase {
                             cbToJs(Integer.parseInt(params[3]), fileSize, "100", EUExCallback.F_C_FinishDownLoad,callbackId);
                      }
                 } else {
+                    BDebug.sendUDPLog("error: 状态码为 "+responseCode);
                     isError = true;
                     cbToJs(Integer.parseInt(params[3]), fileSize, "0", EUExCallback.F_C_DownLoadError,callbackId);
                 }
             } catch (Exception e) {
+                BDebug.sendUDPLog(e.getMessage());
                 isError = true;
                 cbToJs(Integer.parseInt(params[3]), fileSize, "0", EUExCallback.F_C_DownLoadError,callbackId);
-                e.printStackTrace();
+                if (BDebug.DEBUG) {
+                    e.printStackTrace();
+                }
             } finally {
                 if (mConnection!=null){
                     mConnection.disconnect();
