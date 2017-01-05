@@ -53,6 +53,7 @@ android {
         // 应用的包名
         applicationId "org.zywx.wbpalmstar.widgetone.uexDownloaderMgr"
         minSdkVersion 14
+        multiDexEnabled true
     }
     sourceSets {
         main {
