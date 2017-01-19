@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -408,7 +409,7 @@ public class EUExDownloaderMgr extends EUExBase {
                 op = params[3];
 
                 String docName = url.substring(url.lastIndexOf("/") + 1);
-
+                docName= URLDecoder.decode(docName,"utf-8");
                 url = url.substring(0,url.lastIndexOf("/"))+"/"+ URLEncoder.encode(docName,"utf-8");
 
 
