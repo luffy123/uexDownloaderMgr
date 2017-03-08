@@ -2,6 +2,8 @@
  * Created by ylt on 16/8/19.
  */
 if (UNIT_TEST) {
+    // var downloadUrl="http://appcan-download.oss-cn-beijing.aliyuncs.com/appcan_sdk%2Fslider更新.zip";
+
     var downloadUrl="http://pic.fxxz.com/up/2016-5/201654940195240.jpg";
     var uexDownloaderMgrCase = {
         "create": function () {

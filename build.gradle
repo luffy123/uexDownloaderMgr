@@ -23,7 +23,7 @@ buildscript {
         jcenter()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:2.1.2'
+        classpath 'com.android.tools.build:gradle:2.2.3'
 
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
@@ -53,6 +53,7 @@ android {
         // 应用的包名
         applicationId "org.zywx.wbpalmstar.widgetone.uexDownloaderMgr"
         minSdkVersion 14
+        multiDexEnabled true
     }
     sourceSets {
         main {

@@ -406,12 +406,6 @@ public class EUExDownloaderMgr extends EUExBase {
                 String url=params[0];
                 Thread.currentThread().setPriority(Thread.MIN_PRIORITY);
                 op = params[3];
-
-                String docName = url.substring(url.lastIndexOf("/") + 1);
-
-                url = url.substring(0,url.lastIndexOf("/"))+"/"+ URLEncoder.encode(docName,"utf-8");
-
-
                 if (url.startsWith(BUtility.F_HTTP_PATH)) {
                     mConnection= (HttpURLConnection) new URL(url).openConnection();
                 } else {
