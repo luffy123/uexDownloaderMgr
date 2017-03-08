@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -422,6 +423,7 @@ public class EUExDownloaderMgr extends EUExBase {
                         mConnection=Http.getHttpsURLConnection(url);
                     }
                 }
+                mConnection.setInstanceFollowRedirects(true);
                 mConnection.setConnectTimeout(60*1000);
                 mConnection.setRequestMethod("GET");
                 String cookie = getCookie(params[0]);
@@ -481,7 +483,7 @@ public class EUExDownloaderMgr extends EUExBase {
                     }
                 }
                 int responseCode = mConnection.getResponseCode();
-                if (responseCode == HttpURLConnection.HTTP_OK || responseCode == 206) {
+                if (responseCode >= HttpURLConnection.HTTP_OK && responseCode < 300) {
                     fileSize = mConnection.getContentLength();
                     if (outputStream == null) {
                         outputStream = new RandomAccessFile(params[1], "rw");

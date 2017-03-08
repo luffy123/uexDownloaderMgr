@@ -1,8 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <uexplugins>
     <plugin
-        uexName="uexDownloaderMgr" version="4.1.1" build="3">
-        <info>3:（需要引擎4.1.0以上）修复重定向链接不能下载的问题</info>
+        uexName="uexDownloaderMgr" version="4.1.4" build="4">
+        <info>4:（需要引擎4.1.0以上）修复某些url不能下载的问题</info>
+        <build>3:修复服务器返回2XX（非200、206）导致下载失败的问题，并修改自动处理重定向</build>
         <build>2:（需要引擎4.1.0以上）修复不能下载中文链接的问题</build>
         <build>1:解决回调过快导致卡死的问题</build>
         <build>0:4.0改造</build>
